@@ -3,6 +3,7 @@ require 'googleauth'
 require 'googleauth/stores/file_token_store'
 
 require 'fileutils'
+require 'date'
 
 module Lita
   module Handlers
@@ -48,10 +49,9 @@ Then tell me the code as follows: `code \#{your_code}`
         texts = config.template_header
 
         mails = find_mail(config.query)
-        # FIXME: query の 'newer:#{Date.today.strftime("%Y/%m/%d")}'
-        # 昨日のも一部返ってくる(？)し、ここで今日のだけにするしかない?
-        # 'newer_than:1d' だと24h以内になるし…
-        mails.each do |m|
+        # query の `newer:#{Date.today.strftime("%Y/%m/%d")}` 昨日のも一部返ってくる
+        # `newer_than:1d` だと24h以内になるので、ここで今日のだけにする
+        mails.select{ |m| m[:date] > Date.today.to_time }.each do |m|
           texts << <<-EOS
 ---
 #{m[:date]}
