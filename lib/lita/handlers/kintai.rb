@@ -52,12 +52,29 @@ Then tell me the code as follows: `code \#{your_code}`
         # query の `newer:#{Date.today.strftime("%Y/%m/%d")}` 昨日のも一部返ってくる
         # `newer_than:1d` だと24h以内になるので、ここで今日のだけにする
         mails.select{ |m| m[:date] > Date.today.to_time }.each do |m|
-          texts << <<-EOS
----
-#{m[:date]}
-#{m[:subject]}
-#{m[:body]}
-          EOS
+          name = m[:from].split("\"")[1]
+
+          text = m[:subject] + m[:body]
+
+          reason = "私用のため、"
+          if text.match(/電車|列車/)
+            reason = "電車遅延のため、"
+          end
+          if text.match(/体調|痛/)
+            reason = "体調不良のため、"
+          end
+          if text.match(/健康診断|検診|健診/)
+            reason = "健康診断のため、"
+          end
+
+          at = "出社時刻未定です。"
+          if hm = text.match(/([0-1][0-9]|[2][0-3]):[0-5][0-9]/)
+            at = "#{hm}頃出社予定です。"
+          elsif min = text.match(/([0-5][0-9])分/)
+            at = "10:#{min[1]}頃出社予定です。"
+          end
+
+          texts << "#{name}さん: #{reason}#{at}\n"
         end
 
         texts << config.template_footer
@@ -109,8 +126,7 @@ Then tell me the code as follows: `code \#{your_code}`
 
         {
           subject: headers.select { |e| e.name == 'Subject'}.first.value,
-          # TODO: アドレスだけ抜いて名前は返したい
-          # from: headers.select { |e| e[:name] == 'From'}.first.value,
+          from: headers.select { |e| e.name == 'From'}.first.value,
           date: Time.parse(headers.select { |e| e.name == 'Date'}.first.value),
           body: body.force_encoding('utf-8'),
         }
