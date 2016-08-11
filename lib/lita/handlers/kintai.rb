@@ -32,7 +32,7 @@ module Lita
         authorizer.get_and_store_credentials_from_code(
           user_id: USER_ID, code: code, base_url: OOB_URI)
 
-        response.reply("Authentication has been completed.")
+        response.reply("Confirmed")
       end
 
       def current_kintai
@@ -46,7 +46,12 @@ Then tell me the code as follows: `code \#{your_code}`
           EOS
         end
 
-        texts = config.template_header
+        kintai_info
+      end
+
+      def kintai_info
+        texts = ""
+        texts << config.template_header
 
         mails = find_mail(config.query)
         # query の `newer:#{Date.today.strftime("%Y/%m/%d")}` 昨日のも一部返ってくる
