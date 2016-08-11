@@ -32,7 +32,7 @@ module Lita
         authorizer.get_and_store_credentials_from_code(
           user_id: USER_ID, code: code, base_url: OOB_URI)
 
-        response.reply("Authentication has been completed.")
+        response.reply("Confirmed")
       end
 
       def current_kintai
