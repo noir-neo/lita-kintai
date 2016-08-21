@@ -77,6 +77,10 @@ Then tell me the code as follows: `code \#{your_code}`
             at = "#{hm}頃出社予定です。"
           elsif min = text.match(/([0-5][0-9])分/)
             at = "10:#{min[1]}頃出社予定です。"
+
+          if text.match(/おやすみ|休み|有給|休暇/)
+            reason = "本日お休みです。"
+            at = ""
           end
 
           texts << "#{name}さん: #{reason}#{at}\n"
