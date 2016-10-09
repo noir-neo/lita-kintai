@@ -51,7 +51,7 @@ Then tell me the code as follows: `code \#{your_code}`
 
       def kintai_info
         texts = ""
-        texts << config.template_header
+        texts << "#{Date.today.strftime("%m/%d")} (#{%w(日 月 火 水 木 金 土)[Date.today.wday]})#{config.template_header}"
 
         mails = find_mail(config.query)
         # query の `newer:#{Date.today.strftime("%Y/%m/%d")}` 昨日のも一部返ってくる
