@@ -9,8 +9,8 @@ module Lita
   module Handlers
     class Kintai < Handler
       config :query, type: String
-      config :template_header, type: String
-      config :template_footer, type: String
+      config :template_header, type: String, default: ''
+      config :template_footer, type: String, default: ''
 
       route(/kintai/i, :kintai)
       route(/^code\s+(.+)/, :code)
