@@ -1,10 +1,10 @@
 require "spec_helper"
 
 describe Lita::Handlers::Kintai, lita_handler: true do
-  it { is_expected.to route('kintai') }
-  it { is_expected.to route('kintai').to(:kintai) }
-  it { is_expected.to route('code 012abc') }
-  it { is_expected.to route('code 012abc').to(:code) }
+  it { is_expected.to route_command('kintai') }
+  it { is_expected.to route_command('kintai').to(:kintai) }
+  it { is_expected.to route_command('code 012abc') }
+  it { is_expected.to route_command('code 012abc').to(:code) }
 
   describe '#kintai' do
     context 'when authenticated' do
@@ -23,7 +23,7 @@ describe Lita::Handlers::Kintai, lita_handler: true do
       end
 
       it 'returns kintai list' do
-        send_message('kintai')
+        send_command('kintai')
         expect(replies.last).not_to be_nil
       end
     end

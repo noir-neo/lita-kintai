@@ -12,8 +12,8 @@ module Lita
       config :template_header, type: String, default: ''
       config :template_footer, type: String, default: ''
 
-      route(/kintai/i, :kintai)
-      route(/^code\s+(.+)/, :code)
+      route /kintai/i, :kintai, command: true
+      route /^code\s+(.+)/, :code, command: true
 
       OOB_URI = 'urn:ietf:wg:oauth:2.0:oob'
       APPLICATION_NAME = 'Lita Kintai'
