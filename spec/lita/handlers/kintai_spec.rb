@@ -3,9 +3,29 @@ require "spec_helper"
 describe Lita::Handlers::Kintai, lita_handler: true do
   it { is_expected.to route('kintai') }
   it { is_expected.to route('kintai').to(:kintai) }
+  it { is_expected.to route('code 012abc') }
+  it { is_expected.to route('code 012abc').to(:code) }
 
-  it '#kintai' do
-    send_message('kintai')
-    expect(replies.last).not_to eq("")
+  describe '#kintai' do
+    context 'when authenticated' do
+      before do
+        allow_any_instance_of(Lita::Handlers::Kintai).to receive(:authorize).and_return(Google::Apis::GmailV1::GmailService.new)
+        allow_any_instance_of(Lita::Handlers::Kintai).to receive(:find_mail).and_return(
+          [
+            {
+              subject: '',
+              from: '',
+              date: Date.today.to_time,
+              body: '',
+            }
+          ]
+        )
+      end
+
+      it 'returns kintai list' do
+        send_message('kintai')
+        expect(replies.last).not_to be_nil
+      end
+    end
   end
 end
