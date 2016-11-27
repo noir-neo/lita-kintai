@@ -5,15 +5,21 @@ require 'googleauth/stores/file_token_store'
 require 'fileutils'
 require 'date'
 
+require 'rufus-scheduler'
+
 module Lita
   module Handlers
     class Kintai < Handler
       config :query, type: String
       config :template_header, type: String, default: ''
       config :template_footer, type: String, default: ''
+      config :schedule_cron, type: String, default: nil
+      config :schedule_room, type: String, default: nil
 
       route /kintai/i, :kintai, command: true
       route /^code\s+(.+)/, :code, command: true
+
+      on :loaded, :load_on_start
 
       OOB_URI = 'urn:ietf:wg:oauth:2.0:oob'
       APPLICATION_NAME = 'Lita Kintai'
@@ -25,6 +31,24 @@ module Lita
 
       def kintai(response)
         response.reply(current_kintai)
+      end
+
+      def send_kintai(user: user, room: room)
+        target = Source.new(user: user, room: room)
+        robot.send_message(target, current_kintai)
+      end
+
+      def load_on_start(_payload)
+        schedule
+      end
+
+      def schedule
+        return if config.schedule_cron.nil?
+        return if config.schedule_room.nil?
+        scheduler = Rufus::Scheduler.new
+        scheduler.cron config.schedule_cron do
+          send_kintai(room: config.schedule_room)
+        end
       end
 
       def code(response)
