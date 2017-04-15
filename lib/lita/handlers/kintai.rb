@@ -1,10 +1,4 @@
-require 'google/apis/gmail_v1'
-require 'googleauth'
-require 'googleauth/stores/file_token_store'
-
-require 'fileutils'
 require 'date'
-
 require 'rufus-scheduler'
 
 module Lita
@@ -20,22 +14,17 @@ module Lita
       route /^code\s+(.+)/, :code, command: true
 
       on :loaded, :load_on_start
-
-      OOB_URI = 'urn:ietf:wg:oauth:2.0:oob'
-      APPLICATION_NAME = 'Lita Kintai'
-      CLIENT_SECRETS_PATH = 'client_secret.json'
-      CREDENTIALS_PATH = File.join(Dir.home, '.credentials',
-                                   "lita-kintai.yaml")
-      SCOPE = Google::Apis::GmailV1::AUTH_GMAIL_READONLY
-      USER_ID = 'default'
+      on :slack_reaction_added, :reaction_added
 
       def kintai(response)
-        response.reply(current_kintai)
+        response.reply(kintai_or_authenticate)
       end
 
-      def send_kintai(user: user, room: room)
-        target = Source.new(user: user, room: room)
-        robot.send_message(target, current_kintai)
+      def code(response)
+        code = response.matches[0][0]
+        Gmail.credentials_from_code(code)
+
+        response.reply("Confirmed")
       end
 
       def load_on_start(_payload)
@@ -51,119 +40,75 @@ module Lita
         end
       end
 
-      def code(response)
-        code = response.matches[0][0]
-        authorizer.get_and_store_credentials_from_code(
-          user_id: USER_ID, code: code, base_url: OOB_URI)
-
-        response.reply("Confirmed")
+      def send_kintai(user: user, room: room)
+        target = Source.new(user: user, room: room)
+        robot.send_message(target, kintai_or_authenticate)
       end
 
-      def current_kintai
-        if authorize.nil?
-          auth_url = authorizer.get_authorization_url(base_url: OOB_URI)
-          return <<-EOS
-Authenticate your Google account.
-Then tell me the code as follows: `code \#{your_code}`
+      def reaction_added(_payload)
+        p _payload
+      end
 
-#{auth_url}
-          EOS
+      def kintai_or_authenticate
+        if Gmail.authorized?
+          return kintai_info
         end
-
-        kintai_info
+        authenticate_info
       end
 
       def kintai_info
         texts = ""
         texts << "#{Date.today.strftime("%m/%d")} (#{%w(日 月 火 水 木 金 土)[Date.today.wday]})#{config.template_header}"
 
-        mails = find_mail(config.query)
+        mails = Gmail.find_mail(config.query)
         # query の `newer:#{Date.today.strftime("%Y/%m/%d")}` 昨日のも一部返ってくる
         # `newer_than:1d` だと24h以内になるので、ここで今日のだけにする
         mails.select{ |m| m[:date] > Date.today.to_time }.each do |m|
           name = m[:from].split("\"")[1]
 
           text = m[:subject] + m[:body]
+          info = kintai_from_text(text)
 
-          reason = "私用のため、"
-          if text.match(/電車|列車/)
-            reason = "電車遅延のため、"
-          end
-          if text.match(/体調|痛/)
-            reason = "体調不良のため、"
-          end
-          if text.match(/健康診断|検診|健診/)
-            reason = "健康診断のため、"
-          end
-
-          at = "出社時刻未定です。"
-          if hm = text.match(/([0-1][0-9]|[2][0-3]):[0-5][0-9]/)
-            at = "#{hm}頃出社予定です。"
-          elsif min = text.match(/([0-5][0-9])分/)
-            at = "10:#{min[1]}頃出社予定です。"
-          end
-
-          if text.match(/おやすみ|休み|有給|休暇/)
-            reason = "本日お休みです。"
-            at = ""
-          end
-
-          texts << "#{name}さん: #{reason}#{at}\n"
+          texts << "#{name}さん: #{info}\n"
         end
-
         texts << config.template_footer
       end
 
-      def authorize
-        return @service if !@servise.nil? && !@servise.authorization.nil?
+      def self.kintai_from_text(text)
+        reason = kintai_reason(text)
+        time = kintai_time(text)
+        "#{reason}のため、#{time}です。"
+      end
 
-        credentials = authorizer.get_credentials(USER_ID)
-        if credentials
-          @service.authorization = credentials
-          return @service
+      def self.kintai_reason(text)
+        if text.match(/電車|列車/)
+          return "電車遅延"
+        elsif text.match(/体調|痛/)
+          return "体調不良"
+        elsif text.match(/健康診断|検診|健診/)
+          return "健康診断"
         end
-
-        return nil
+        return  "私用"
       end
 
-      def authorizer
-        return @authorizer unless @authorizer.nil?
-
-        @service = Google::Apis::GmailV1::GmailService.new
-        @service.client_options.application_name = APPLICATION_NAME
-
-        FileUtils.mkdir_p(File.dirname(CREDENTIALS_PATH))
-
-        client_id = Google::Auth::ClientId.from_file(CLIENT_SECRETS_PATH)
-        token_store = Google::Auth::Stores::FileTokenStore.new(
-          file: CREDENTIALS_PATH)
-        @authorizer = Google::Auth::UserAuthorizer.new(
-          client_id, SCOPE, token_store)
-      end
-
-      def find_mail(query)
-        ids = @service.list_user_messages('me', q: query)
-
-        return [] unless ids.messages
-        ids.messages.map do |message|
-          find_mail_by_id(message.id)
+      def self.kintai_time(text)
+        if hm = text.match(/([0-1][0-9]|[2][0-3]):[0-5][0-9]/)
+          return "#{hm}頃出社予定"
+        elsif min = text.match(/([0-5][0-9])分/)
+          return "10:#{min[1]}頃出社予定"
+        elsif text.match(/おやすみ|休み|有給|休暇/)
+          return "本日お休み"
         end
+        return "出社時刻未定"
       end
 
-      def find_mail_by_id(id)
-        results = @service.get_user_message('me', id)
+      def authenticate_info
+        <<-EOS
+Authenticate your Google account.
+Then tell me the code as follows: `code \#{your_code}`
 
-        body = results.payload.parts ?
-          results.payload.parts.first.body.data :
-          results.payload.body.data
-        headers = results.payload.headers
-
-        {
-          subject: headers.select { |e| e.name == 'Subject'}.first.value,
-          from: headers.select { |e| e.name == 'From'}.first.value,
-          date: Time.parse(headers.select { |e| e.name == 'Date'}.first.value),
-          body: body.force_encoding('utf-8'),
-        }
+#{Gmail.authorization_url}
+        EOS
       end
 
       Lita.register_handler(self)
