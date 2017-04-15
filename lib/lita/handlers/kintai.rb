@@ -20,6 +20,7 @@ module Lita
       route /^code\s+(.+)/, :code, command: true
 
       on :loaded, :load_on_start
+      on :slack_reaction_added, :reaction_added
 
       OOB_URI = 'urn:ietf:wg:oauth:2.0:oob'
       APPLICATION_NAME = 'Lita Kintai'
@@ -49,6 +50,10 @@ module Lita
         scheduler.cron config.schedule_cron do
           send_kintai(room: config.schedule_room)
         end
+      end
+
+      def reaction_added(_payload)
+        p _payload
       end
 
       def code(response)
