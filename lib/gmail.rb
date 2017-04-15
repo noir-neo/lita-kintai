@@ -14,7 +14,7 @@ class Gmail
   USER_ID = 'default'
 
   def self.authorized?
-    !service.nil?
+    !service.nil? && !service.authorization.nil?
   end
 
   def self.credentials_from_code(code)
