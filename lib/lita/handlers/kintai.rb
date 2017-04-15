@@ -1,5 +1,6 @@
 require 'date'
 require 'rufus-scheduler'
+require 'mail'
 
 module Lita
   module Handlers
@@ -46,7 +47,15 @@ module Lita
       end
 
       def reaction_added(_payload)
-        p _payload
+        if Gmail.authorized?
+
+          p Gmail.send_message(Mail.new do
+              to ''
+              cc ''
+              subject 'test'
+              body _payload.to_s
+            end)
+        end
       end
 
       def kintai_or_authenticate
