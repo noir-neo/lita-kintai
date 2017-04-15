@@ -13,7 +13,30 @@ class Gmail
   SCOPE = Google::Apis::GmailV1::AUTH_GMAIL_READONLY
   USER_ID = 'default'
 
-  def self.authorize
+  def self.authorized?
+    !@service.nil?
+  end
+
+  def self.credentials_from_code(code)
+    authorizer.get_and_store_credentials_from_code(
+    user_id: USER_ID, code: code, base_url: OOB_URI)
+  end
+
+  def self.authorization_url
+    authorizer.get_authorization_url(base_url: OOB_URI)
+  end
+
+  def self.find_mail(query)
+    ids = service.list_user_messages('me', q: query)
+
+    return [] unless ids.messages
+    ids.messages.map do |message|
+      find_mail_by_id(message.id)
+    end
+  end
+
+private
+  def self.service
     return @service if !@service.nil? && !@service.authorization.nil?
 
     credentials = authorizer.get_credentials(USER_ID)
@@ -22,7 +45,7 @@ class Gmail
       return @service
     end
 
-    return nil
+    return @service
   end
 
   def self.authorizer
@@ -38,24 +61,6 @@ class Gmail
       file: CREDENTIALS_PATH)
     @authorizer = Google::Auth::UserAuthorizer.new(
       client_id, SCOPE, token_store)
-  end
-
-  def self.credentials_from_code
-    authorizer.get_and_store_credentials_from_code(
-    user_id: USER_ID, code: code, base_url: OOB_URI)
-  end
-
-  def self.authorization_url
-    authorizer.get_authorization_url(base_url: OOB_URI)
-  end
-
-  def self.find_mail(query)
-    ids = @service.list_user_messages('me', q: query)
-
-    return [] unless ids.messages
-    ids.messages.map do |message|
-      find_mail_by_id(message.id)
-    end
   end
 
   def self.find_mail_by_id(id)

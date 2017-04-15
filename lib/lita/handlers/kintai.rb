@@ -17,12 +17,14 @@ module Lita
       on :slack_reaction_added, :reaction_added
 
       def kintai(response)
-        response.reply(current_kintai)
+        response.reply(kintai_or_authenticate)
       end
 
-      def send_kintai(user: user, room: room)
-        target = Source.new(user: user, room: room)
-        robot.send_message(target, current_kintai)
+      def code(response)
+        code = response.matches[0][0]
+        Gmail.credentials_from_code(code)
+
+        response.reply("Confirmed")
       end
 
       def load_on_start(_payload)
@@ -38,29 +40,20 @@ module Lita
         end
       end
 
+      def send_kintai(user: user, room: room)
+        target = Source.new(user: user, room: room)
+        robot.send_message(target, kintai_or_authenticate)
+      end
+
       def reaction_added(_payload)
         p _payload
       end
 
-      def code(response)
-        code = response.matches[0][0]
-        Gmail.credentials_from_code
-
-        response.reply("Confirmed")
-      end
-
-      def current_kintai
-        if Gmail.authorize.nil?
-          auth_url = Gmail.authorization_url
-          return <<-EOS
-Authenticate your Google account.
-Then tell me the code as follows: `code \#{your_code}`
-
-#{auth_url}
-          EOS
+      def kintai_or_authenticate
+        if Gmail.authorized?
+          return kintai_info
         end
-
-        kintai_info
+        authenticate_info
       end
 
       def kintai_info
@@ -74,34 +67,49 @@ Then tell me the code as follows: `code \#{your_code}`
           name = m[:from].split("\"")[1]
 
           text = m[:subject] + m[:body]
+          info = kintai_from_text(text)
 
-          reason = "私用のため、"
-          if text.match(/電車|列車/)
-            reason = "電車遅延のため、"
-          end
-          if text.match(/体調|痛/)
-            reason = "体調不良のため、"
-          end
-          if text.match(/健康診断|検診|健診/)
-            reason = "健康診断のため、"
-          end
-
-          at = "出社時刻未定です。"
-          if hm = text.match(/([0-1][0-9]|[2][0-3]):[0-5][0-9]/)
-            at = "#{hm}頃出社予定です。"
-          elsif min = text.match(/([0-5][0-9])分/)
-            at = "10:#{min[1]}頃出社予定です。"
-          end
-
-          if text.match(/おやすみ|休み|有給|休暇/)
-            reason = "本日お休みです。"
-            at = ""
-          end
-
-          texts << "#{name}さん: #{reason}#{at}\n"
+          texts << "#{name}さん: #{info}\n"
         end
 
         texts << config.template_footer
+      end
+
+      def kintai_from_text(text)
+        reason = kintai_reason(text)
+        time = kintai_time(text)
+        "#{reason}のため、#{time}"
+      end
+
+      def kintai_reason(text)
+        if text.match(/電車|列車/)
+          return "電車遅延"
+        elsif text.match(/体調|痛/)
+          return "体調不良"
+        elsif text.match(/健康診断|検診|健診/)
+          return "健康診断"
+        end
+        return  "私用"
+      end
+
+      def kintai_time(text)
+        if hm = text.match(/([0-1][0-9]|[2][0-3]):[0-5][0-9]/)
+          return "#{hm}頃出社予定です。"
+        elsif min = text.match(/([0-5][0-9])分/)
+          return "10:#{min[1]}頃出社予定です。"
+        elsif text.match(/おやすみ|休み|有給|休暇/)
+          return "本日お休みです。"
+        end
+        return "出社時刻未定です。"
+      end
+
+      def authenticate_info
+        <<-EOS
+Authenticate your Google account.
+Then tell me the code as follows: `code \#{your_code}`
+
+#{Gmail.authorization_url}
+        EOS
       end
 
       Lita.register_handler(self)
