@@ -94,8 +94,8 @@ module Lita
       def self.kintai_time(text)
         if hm = text.match(/([0-1][0-9]|[2][0-3]):[0-5][0-9]/)
           return "#{hm}頃出社予定"
-        elsif min = text.match(/([0-5][0-9])分/)
-          return "10:#{min[1]}頃出社予定"
+        elsif min = text.match(/(([0-5])*[0-9])分/)
+          return "10:#{min[1].rjust(2, "0")}頃出社予定"
         elsif text.match(/おやすみ|休み|有給|休暇/)
           return "本日お休み"
         end
