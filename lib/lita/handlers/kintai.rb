@@ -71,17 +71,16 @@ module Lita
 
           texts << "#{name}さん: #{info}\n"
         end
-
         texts << config.template_footer
       end
 
-      def kintai_from_text(text)
+      def self.kintai_from_text(text)
         reason = kintai_reason(text)
         time = kintai_time(text)
-        "#{reason}のため、#{time}"
+        "#{reason}のため、#{time}です。"
       end
 
-      def kintai_reason(text)
+      def self.kintai_reason(text)
         if text.match(/電車|列車/)
           return "電車遅延"
         elsif text.match(/体調|痛/)
@@ -92,15 +91,15 @@ module Lita
         return  "私用"
       end
 
-      def kintai_time(text)
+      def self.kintai_time(text)
         if hm = text.match(/([0-1][0-9]|[2][0-3]):[0-5][0-9]/)
-          return "#{hm}頃出社予定です。"
+          return "#{hm}頃出社予定"
         elsif min = text.match(/([0-5][0-9])分/)
-          return "10:#{min[1]}頃出社予定です。"
+          return "10:#{min[1]}頃出社予定"
         elsif text.match(/おやすみ|休み|有給|休暇/)
-          return "本日お休みです。"
+          return "本日お休み"
         end
-        return "出社時刻未定です。"
+        return "出社時刻未定"
       end
 
       def authenticate_info
