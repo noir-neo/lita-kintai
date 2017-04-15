@@ -42,20 +42,16 @@ module Lita
       end
 
       def send_kintai(user: user, room: room)
-        target = Source.new(user: user, room: room)
-        robot.send_message(target, kintai_or_authenticate)
+        send_message(user: user, room: room, message: kintai_or_authenticate)
       end
 
       def reaction_added(_payload)
-        if Gmail.authorized?
+        send_message(room: _payload[:item]["channel"], message: send_mail_or_authenticate)
+      end
 
-          p Gmail.send_message(Mail.new do
-              to ''
-              cc ''
-              subject 'test'
-              body _payload.to_s
-            end)
-        end
+      def send_message(user: user, room: room, message: message)
+        target = Source.new(user: user, room: room)
+        robot.send_message(target, message)
       end
 
       def kintai_or_authenticate
@@ -63,6 +59,23 @@ module Lita
           return kintai_info
         end
         authenticate_info
+      end
+
+      def send_mail_or_authenticate
+        if Gmail.authorized?
+          return send_mail(to: '', cc: '', subject: 'subject', body: 'body')
+        end
+        authenticate_info
+      end
+
+      def send_mail(to: to, cc: cc, subject: subject, body: body)
+        mail = Mail.new do
+          to to
+          cc cc
+          subject subject
+          body body
+        end
+        return Gmail.send_message(mail)
       end
 
       def kintai_info
