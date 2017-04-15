@@ -9,8 +9,8 @@ describe Lita::Handlers::Kintai, lita_handler: true do
   describe '#kintai' do
     context 'when authenticated' do
       before do
-        allow_any_instance_of(Lita::Handlers::Kintai).to receive(:authorize).and_return(Google::Apis::GmailV1::GmailService.new)
-        allow_any_instance_of(Lita::Handlers::Kintai).to receive(:find_mail).and_return(
+        allow(Gmail).to receive(:authorized?).and_return(true)
+        allow(Gmail).to receive(:find_mail).and_return(
           [
             {
               subject: '',
