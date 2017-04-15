@@ -65,5 +65,30 @@ describe Lita::Handlers::Kintai, lita_handler: true do
       let(:text) { "10分ほど遅れます" }
       it { is_expected.to eq "10:10頃出社予定" }
     end
+
+    context '「m分」が含まれる時' do
+      let(:text) { "5分ほど遅れます" }
+      it { is_expected.to eq "10:05頃出社予定" }
+    end
+
+    context '「HH時半」が含まれる時' do
+      let(:text) { "10時半ごろに出社します" }
+      it { is_expected.to eq "10:30頃出社予定" }
+    end
+
+    context '「n時間半」が含まれる時' do
+      let(:text) { "1時間半ほど遅れます" }
+      it { is_expected.to eq "11:30頃出社予定" }
+    end
+
+    context '「休み」が含まれる時' do
+      let(:text) { "お休みをいただいてます" }
+      it { is_expected.to eq "本日お休み" }
+    end
+
+    context 'いずれにもマッチしない時' do
+      let(:text) { "出社時刻わかり次第また連絡します" }
+      it { is_expected.to eq "出社時刻未定" }
+    end
   end
 end
