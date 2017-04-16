@@ -11,6 +11,7 @@ module Lita
       config :template_subject, type: String, default: ''
       config :template_header, type: String, default: ''
       config :template_footer, type: String, default: ''
+      config :template_info, type: String, default: ''
       config :schedule_cron, type: String, default: nil
       config :schedule_room, type: String, default: nil
 
@@ -22,15 +23,23 @@ module Lita
       on :slack_reaction_added, :reaction_added
 
       def kintai(response)
-        response.reply(kintai_or_authenticate)
+        if Gmail.authorized?
+          register_draft(response, kintai_info)
+        else
+          response.reply(authenticate_info)
+        end
       end
 
       def draft(response)
         info = response.matches[0][0]
+        register_draft(response, info)
+      end
+
+      def register_draft(response, info)
         mail = create_kintai_mail(info)
         reply = response.reply(mail_to_message(mail))
-
         @@draft = { channel: reply["channel"], ts: reply["ts"], mail: mail }
+        reply
       end
 
       def code(response)
@@ -64,8 +73,16 @@ module Lita
             _payload[:item]["type"] == "message" &&
             _payload[:item]["channel"] == @@draft[:channel] &&
             _payload[:item]["ts"] == @@draft[:ts]
-            send_message(room: _payload[:item]["channel"],
-              message: send_mail_or_authenticate(@@draft[:mail]))
+            if Gmail.authorized?
+              # TODO: 成功失敗
+              send_mail(@@draft[:mail])
+              @@draft = nil
+              send_message(room: _payload[:item]["channel"],
+                message: 'Sent email.')
+            else
+              send_message(room: _payload[:item]["channel"],
+                message: authenticate_info)
+            end
           end
         end
       end
@@ -73,23 +90,6 @@ module Lita
       def send_message(user: user, room: room, message: message)
         target = Source.new(user: user, room: room)
         robot.send_message(target, message)
-      end
-
-      def kintai_or_authenticate
-        if Gmail.authorized?
-          return kintai_info
-        end
-        authenticate_info
-      end
-
-      def send_mail_or_authenticate(mail)
-        if Gmail.authorized?
-          # TODO: 成功失敗
-          send_mail(mail)
-          @@draft = nil
-          return 'Sent email.'
-        end
-        authenticate_info
       end
 
       def create_kintai_mail(info)
@@ -125,7 +125,6 @@ Subject: #{mail.subject}
 
       def kintai_info
         texts = ""
-        texts << "#{Date.today.strftime("%m/%d")} (#{%w(日 月 火 水 木 金 土)[Date.today.wday]}) #{config.template_header}"
 
         mails = Gmail.find_mail(config.query)
         # query の `newer:#{Date.today.strftime("%Y/%m/%d")}` 昨日のも一部返ってくる
@@ -138,7 +137,7 @@ Subject: #{mail.subject}
 
           texts << "#{name}さん: #{info}\n"
         end
-        texts << config.template_footer
+        texts << config.template_info
       end
 
       def self.kintai_from_text(text)
