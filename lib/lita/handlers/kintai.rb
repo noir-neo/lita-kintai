@@ -6,12 +6,16 @@ module Lita
   module Handlers
     class Kintai < Handler
       config :query, type: String
+      config :mail_to, type: String, default: ''
+      config :mail_cc, type: String, default: ''
+      config :template_subject, type: String, default: ''
       config :template_header, type: String, default: ''
       config :template_footer, type: String, default: ''
       config :schedule_cron, type: String, default: nil
       config :schedule_room, type: String, default: nil
 
       route /kintai/i, :kintai, command: true
+      route /^draft\s+(.+)/im, :draft, command: true
       route /^code\s+(.+)/, :code, command: true
 
       on :loaded, :load_on_start
@@ -19,6 +23,14 @@ module Lita
 
       def kintai(response)
         response.reply(kintai_or_authenticate)
+      end
+
+      def draft(response)
+        info = response.matches[0][0]
+        mail = create_kintai_mail(info)
+        reply = response.reply(mail.to_s)
+
+        @@draft = { channel: reply["channel"], ts: reply["ts"], mail: mail }
       end
 
       def code(response)
@@ -46,7 +58,16 @@ module Lita
       end
 
       def reaction_added(_payload)
-        send_message(room: _payload[:item]["channel"], message: send_mail_or_authenticate)
+        case _payload[:name]
+        when '+1' then
+          if !@@draft.nil? &&
+            _payload[:item]["type"] == "message" &&
+            _payload[:item]["channel"] == @@draft[:channel] &&
+            _payload[:item]["ts"] == @@draft[:ts]
+            send_message(room: _payload[:item]["channel"],
+              message: send_mail_or_authenticate(@@draft[:mail]))
+          end
+        end
       end
 
       def send_message(user: user, room: room, message: message)
@@ -61,26 +82,41 @@ module Lita
         authenticate_info
       end
 
-      def send_mail_or_authenticate
+      def send_mail_or_authenticate(mail)
         if Gmail.authorized?
-          return send_mail(to: '', cc: '', subject: 'subject', body: 'body')
+          # TODO: 成功失敗
+          send_mail(mail)
+          @@draft = nil
+          return 'Sent email.'
         end
         authenticate_info
       end
 
-      def send_mail(to: to, cc: cc, subject: subject, body: body)
-        mail = Mail.new do
+      def create_kintai_mail(info)
+        create_mail(
+          to: config.mail_to,
+          cc: config.mail_cc,
+          subject: kintai_subject,
+          body: kintai_body(info)
+        )
+      end
+
+      def create_mail(to: to, cc: cc, subject: subject, body: body)
+        Mail.new do
           to to
           cc cc
           subject subject
           body body
         end
+      end
+
+      def send_mail(mail)
         return Gmail.send_message(mail)
       end
 
       def kintai_info
         texts = ""
-        texts << "#{Date.today.strftime("%m/%d")} (#{%w(日 月 火 水 木 金 土)[Date.today.wday]})#{config.template_header}"
+        texts << "#{Date.today.strftime("%m/%d")} (#{%w(日 月 火 水 木 金 土)[Date.today.wday]}) #{config.template_header}"
 
         mails = Gmail.find_mail(config.query)
         # query の `newer:#{Date.today.strftime("%Y/%m/%d")}` 昨日のも一部返ってくる
@@ -100,6 +136,20 @@ module Lita
         reason = kintai_reason(text)
         time = kintai_time(text)
         "#{reason}のため、#{time}です。"
+      end
+
+      def kintai_subject
+        "#{Date.today.strftime("%m/%d")} (#{%w(日 月 火 水 木 金 土)[Date.today.wday]})#{config.template_subject}"
+      end
+
+      def kintai_body(info)
+        <<-EOS
+#{config.template_header}
+
+#{info}
+
+#{config.template_footer}
+        EOS
       end
 
       def self.kintai_reason(text)
