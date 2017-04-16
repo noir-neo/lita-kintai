@@ -63,7 +63,14 @@ module Lita
       end
 
       def send_kintai(user: user, room: room)
-        send_message(user: user, room: room, message: kintai_or_authenticate)
+        if Gmail.authorized?
+          mail = create_kintai_mail(kintai_info)
+          reply = send_message(user: user, room: room, message: mail)
+          @@draft = { channel: reply["channel"], ts: reply["ts"], mail: mail }
+          reply
+        else
+          send_message(user: user, room: room, message: authenticate_info)
+        end
       end
 
       def reaction_added(_payload)
