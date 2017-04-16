@@ -28,7 +28,7 @@ module Lita
       def draft(response)
         info = response.matches[0][0]
         mail = create_kintai_mail(info)
-        reply = response.reply(mail.to_s)
+        reply = response.reply(mail_to_message(mail))
 
         @@draft = { channel: reply["channel"], ts: reply["ts"], mail: mail }
       end
@@ -99,6 +99,15 @@ module Lita
           subject: kintai_subject,
           body: kintai_body(info)
         )
+      end
+
+      def mail_to_message(mail)
+        <<-EOS
+To: #{mail.to}
+Cc: #{mail.cc}
+Subject: #{mail.subject}
+#{mail.body.to_s}
+        EOS
       end
 
       def create_mail(to: to, cc: cc, subject: subject, body: body)
