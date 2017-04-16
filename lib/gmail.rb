@@ -10,11 +10,11 @@ class Gmail
   CLIENT_SECRETS_PATH = 'client_secret.json'
   CREDENTIALS_PATH = File.join(Dir.home, '.credentials',
                                "lita-kintai.yaml")
-  SCOPE = Google::Apis::GmailV1::AUTH_GMAIL_READONLY
+  SCOPE = [Google::Apis::GmailV1::AUTH_GMAIL_READONLY, Google::Apis::GmailV1::AUTH_GMAIL_SEND]
   USER_ID = 'default'
 
   def self.authorized?
-    !service.nil?
+    !service.nil? && !service.authorization.nil?
   end
 
   def self.credentials_from_code(code)
@@ -33,6 +33,11 @@ class Gmail
     ids.messages.map do |message|
       find_mail_by_id(message.id)
     end
+  end
+
+  def self.send_message(mail)
+    message = Google::Apis::GmailV1::Message.new(raw: mail.to_s )
+    result = service.send_user_message('me', message)
   end
 
 private
