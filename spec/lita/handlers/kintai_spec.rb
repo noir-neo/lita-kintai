@@ -29,7 +29,31 @@ describe Lita::Handlers::Kintai, lita_handler: true do
     end
   end
 
-  describe '#kintai_reason(text)' do
+  describe '.kintai_from_text' do
+    subject { Lita::Handlers::Kintai.kintai_from_text(text) }
+
+    context '理由と時間がマッチする時' do
+      let(:text) { "電車が遅れていて5分ほど遅れます" }
+      it { is_expected.to eq "電車遅延のため、10:05頃出社予定です。" }
+    end
+
+    context '理由がマッチする時' do
+      let(:text) { "電車が遅れていて出社時刻わかりません" }
+      it { is_expected.to eq "電車遅延のため、出社時刻未定です。" }
+    end
+
+    context '時間がマッチする時' do
+      let(:text) { "5分ほど遅れます" }
+      it { is_expected.to eq "私用のため、10:05頃出社予定です。" }
+    end
+
+    context '理由と時間どちらもマッチしない時' do
+      let(:text) { "大変なことになったのでめっちゃ遅れます" }
+      it { is_expected.to eq "私用のため、出社時刻未定です。" }
+    end
+  end
+
+  describe '.kintai_reason(text)' do
     subject { Lita::Handlers::Kintai.kintai_reason(text) }
 
     context '「電車」が含まれる時' do
@@ -53,7 +77,7 @@ describe Lita::Handlers::Kintai, lita_handler: true do
     end
   end
 
-  describe '#kintai_time(text)' do
+  describe '.kintai_time(text)' do
     subject { Lita::Handlers::Kintai.kintai_time(text) }
 
     context '「HH:mm」が含まれる時' do
