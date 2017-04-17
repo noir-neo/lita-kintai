@@ -1,6 +1,6 @@
 Gem::Specification.new do |spec|
   spec.name          = "lita-kintai"
-  spec.version       = "0.3.0"
+  spec.version       = "0.3.1"
   spec.authors       = ["Shoma SATO"]
   spec.email         = ["noir.neo.04@gmail.com"]
   spec.description   = "A lita handler for summarize attendance emails. Fuckin' legacy attendance management method by email!"
