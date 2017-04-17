@@ -140,7 +140,7 @@ Subject: #{mail.subject}
           name = m[:from].split("\"")[1]
 
           text = m[:subject] + m[:body]
-          info = kintai_from_text(text)
+          info = Kintai.kintai_from_text(text)
 
           texts << "#{name}さん: #{info}\n"
         end
