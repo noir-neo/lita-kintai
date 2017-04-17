@@ -38,7 +38,9 @@ module Lita
       def register_draft(response, info)
         mail = create_kintai_mail(info)
         reply = response.reply(mail_to_message(mail))
-        @@draft = { channel: reply["channel"], ts: reply["ts"], mail: mail }
+        if (reply.kind_of?(Hash) && reply.has_key?("channel") && reply.has_key?("ts"))
+          @@draft = { channel: reply["channel"], ts: reply["ts"], mail: mail }
+        end
         reply
       end
 
