@@ -13,18 +13,35 @@ describe Lita::Handlers::Kintai, lita_handler: true do
         allow(Gmail).to receive(:find_mail).and_return(
           [
             {
-              subject: '',
-              from: '',
-              date: Date.today.to_time,
-              body: '',
+              subject: '佐藤 5分遅刻',
+              from: '\"佐藤',
+              date: Time.now,
+              body: '電車遅延のため、5分ほど遅れます。',
             }
           ]
         )
+        registry.config.handlers.kintai.mail_to = "mail@to"
+        registry.config.handlers.kintai.mail_cc = "mail@cc"
+        registry.config.handlers.kintai.template_subject = "Subject"
+        registry.config.handlers.kintai.template_header = "header"
+        registry.config.handlers.kintai.template_footer = "footer"
+        registry.config.handlers.kintai.template_info = "info template"
       end
 
       it 'returns kintai list' do
         send_command('kintai')
-        expect(replies.last).not_to be_nil
+        expect(replies.last).to eq <<-EOS
+To: ["mail@to"]
+Cc: ["mail@cc"]
+Subject: #{Date.today.strftime("%m/%d")} (#{%w(日 月 火 水 木 金 土)[Date.today.wday]})Subject
+header
+
+佐藤さん: 電車遅延のため、10:05頃出社予定です。
+info template
+
+footer
+
+        EOS
       end
     end
   end
