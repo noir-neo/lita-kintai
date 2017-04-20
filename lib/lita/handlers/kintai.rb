@@ -67,7 +67,7 @@ module Lita
       def send_kintai(user: user, room: room)
         if Gmail.authorized?
           mail = create_kintai_mail(kintai_info)
-          reply = send_message(user: user, room: room, message: mail)
+          reply = send_message(user: user, room: room, message: mail_to_message(mail))
           @@draft = { channel: reply["channel"], ts: reply["ts"], mail: mail }
           reply
         else
